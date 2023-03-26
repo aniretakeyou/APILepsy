@@ -1,0 +1,147 @@
+from datetime import timedelta
+from PIL import Image
+from moviepy.editor import *
+import cv2
+import numpy as np
+import os
+import os.path
+import glob
+import moviepy
+
+# то есть, если видео длительностью 30 секунд, сохраняется 10 кадров в секунду = всего сохраняется 300 кадров
+SAVING_FRAMES_PER_SECOND = 60 # было 10
+
+
+def format_timedelta(td):
+    """Служебная функция для классного форматирования объектов timedelta (например, 00:00:20.05)
+    исключая микросекунды и сохраняя миллисекунды"""
+    result = str(td)
+    try:
+        result, ms = result.split(".")
+    except ValueError:
+        return "-" + result + ".00".replace(":", "-")
+    ms = int(ms)
+    ms = round(ms / 1e4)
+    return f"-{result}.{ms:02}".replace(":", "-")
+
+
+def color(picture_name):
+    with Image.open(f"{picture_name}") as shot:
+        sq = [0, 0, 0]  # Массив для общего подсчета
+        count = shot.size[0] * shot.size[1]  # Ширина * Высота
+
+        width = shot.size[0]  # Ширина
+        height = shot.size[1]  # Высота
+        obj_for_count = shot.load()
+        for i in range(width):  # Цикл по ширине
+            for j in range(height):  # Цикл по высоте
+                sq[0] += obj_for_count[i, j][0]  # r
+                sq[1] += obj_for_count[i, j][1]  # g
+                sq[2] += obj_for_count[i, j][2]  # b
+
+        out = [0, 0, 0]  # Массив для средних значений
+
+        out[0] = int(sq[0] / count)  # Средние значения
+        out[1] = int(sq[1] / count)
+        out[2] = int(sq[2] / count)
+
+        return out[0], out[1], out[2]
+def get_saving_frames_durations(cap, saving_fps):
+    """Функция, которая возвращает список длительностей сохраняемых кадров"""
+    s = []
+    # получаем длительность клипа, разделив количество кадров на количество кадров в секунду
+    clip_duration = cap.get(cv2.CAP_PROP_FRAME_COUNT) / cap.get(cv2.CAP_PROP_FPS)
+    # используем np.arange() для выполнения шагов с плавающей запятой
+    for i in np.arange(0, clip_duration, 1 / saving_fps):
+        s.append(i)
+    return s
+
+
+def main(video_file):
+    filename, _ = os.path.splitext(video_file)
+    filename += "-opencv"
+    # создаем папку по названию видео файла
+    if not os.path.isdir(filename):
+        os.mkdir(filename)
+    # читать видео файл
+    cap = cv2.VideoCapture(video_file)
+    # получить FPS видео
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    # если наше SAVING_FRAMES_PER_SECOND больше FPS видео, то установливаем минимальное
+    saving_frames_per_second = min(fps, SAVING_FRAMES_PER_SECOND)
+    # получить список длительностей кадров для сохранения
+    saving_frames_durations = get_saving_frames_durations(cap, saving_frames_per_second)
+    # начало цикла
+    count = 1
+    save_count = 0
+    while True:
+        is_read, frame = cap.read()
+        if not is_read:
+            # выйти из цикла, если нет фреймов для чтения
+            break
+        # получаем длительность, разделив текущее количество кадров на FPS
+        frame_duration = count / fps
+        try:
+            # получить самую первоначальную длительность для сохранения
+            closest_duration = saving_frames_durations[0]
+        except IndexError:
+            # список пуст, все кадры сохранены
+            break
+        if frame_duration >= closest_duration:
+            # если ближайшая длительность меньше или равна длительности текущего кадра,
+            # сохраняем фрейм
+            frame_duration_formatted = format_timedelta(timedelta(seconds=frame_duration))
+            saveframe_name = os.path.join(filename, f"{count}.jpg")
+            cv2.imwrite(saveframe_name, frame)
+            save_count += 1
+            print(f"{saveframe_name} сохранён")
+            # удалить текущую длительность из списка, так как этот кадр уже сохранен
+            try:
+                saving_frames_durations.pop(0)
+            except IndexError:
+                pass
+        # увеличить счечик кадров count
+        count += 1
+
+    print(f"Итого сохранено кадров {save_count}")
+
+
+if __name__ == "__main__":
+    name = input()
+    main(f"{name}")
+    count = 0
+    i = 1
+    j = 2
+    while True:
+        if count > 0:
+            break
+        if not os.path.exists(f"is42-opencv/{j}.jpg"):
+            break
+        first_color = color(f"is42-opencv/{i}.jpg")
+        second_color = color(f"is42-opencv/{j}.jpg")
+        result = [abs(first_color[number] - second_color[number]) for number in range(len(first_color))]
+        j += 1
+        i += 1
+        if tuple(result) > (1, 2, 3):
+            count += 1
+    print(count)
+video1 = VideoFileClip("disclaimer.mp4")
+video2 = VideoFileClip("is42.mp4")
+resized_video1 = video1.resize((1920, 1080))
+videos = [resized_video1, video2]
+
+final_video = concatenate_videoclips(videos, method="compose")
+final_video.write_videofile("3.mp4")
+
+
+def concat_video(self, name, *args):
+    r_videos = []
+    for video in args:
+        v = VideoFileClip(video)
+        r_videos.append(v)
+    try:
+        final_clip = concatenate_videoclips(r_videos[:])
+        final_clip.write_videofile(f"{name}.mp4")
+    except Exception as ex:
+        print("Ничего не вышло :(")
+        print(ex)
