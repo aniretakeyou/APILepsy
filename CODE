@@ -5,16 +5,14 @@ import os
 import os.path
 import numpy as np
 
-
 # функция для определения яркости изображения
 def func_brightness(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     return np.mean(gray)
-    # функция для определения среднего значения по цвету
 
 name = input()
 video = cv2.VideoCapture(name)  # считываем видеофайл
-
+video_1 = cv2.VideoCapture("disclaimer.mp4")
 # определяем длину видефайла
 video_length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 
@@ -22,25 +20,40 @@ video_length = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 fps = int(video.get(cv2.CAP_PROP_FPS))
 
 count = 1
+previous_frame = []
 buffer = []
+critical_difference = [100, 100, 100]
+k = 0
 while True:
     is_read, frame = video.read()
     if not is_read:
         # выйти из цикла, если нет фреймов для чтения
         break
     frame_name = f"{count}.jpg"
-    if func_brightness(frame) > 200:  # нахождение плохих кадров
-        im = Image.fromarray(frame)
-        enhancer = ImageEnhance.Brightness(im)
-        factor = 0.1
-        frame = np.array(enhancer.enhance(factor))  # затемнение плохого кадра
-        buffer.append(frame)
-        print(f"{frame_name} сохранён")
+    if count > 1:
+        for i in range(len(previous_frame)):
+            for j in range(len(previous_frame)):
+                difference = abs((previous_frame[i][j] - frame[i][j])).sum()
+                if (difference > critical_difference).all():
+                    k += 1
+                if k > 100:
+                    break
+            if k > 100:
+                break
+    previous_frame = frame
+    if func_brightness(frame) > 200 or k >= 100:  # нахождение плохих кадров
+       im = Image.fromarray(frame)
+       enhancer = ImageEnhance.Brightness(im)
+       factor = 0.1
+       frame = np.array(enhancer.enhance(factor))  # затемнение плохого кадра
+       buffer.append(frame)
+       print(f"{frame_name} сохранён")
     else:
-        buffer.append(frame)
-        print(f"{frame_name} сохранён")
+       buffer.append(frame)
+       print(f"{frame_name} сохранён")
     count += 1
-
+    print(k)
+    k = 0
 # начало создания нового видео
 height, width, channels = buffer[0].shape
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -53,12 +66,34 @@ for frame in buffer:
 cv2.destroyAllWindows()
 video_writer.release()
 
-# конец создания нового видео
+
 video1 = VideoFileClip("disclaimer.mp4")
 video2 = VideoFileClip("result.avi")
 resized_video1 = video1.resize((width, height))
 resized_video2 = video2.resize((width, height))
 videos = [resized_video1, resized_video2]   # объединение предупреждения и нового видео
 
-final_video = concatenate_videoclips(videos, method="compose")
-final_video.write_videofile("3.mp4")  # конечное видео
+# создаем объекты для видео и аудио дорожек
+video_clip_1 = VideoFileClip("disclaimer.mp4")
+video_clip_2 = VideoFileClip(name)
+final_video = concatenate_videoclips([video_clip_1.set_audio(None), video_clip_2.set_audio(None)])
+
+# записываем конечное видео с аудио дорожкой
+final_video.write_videofile("3.mp4")
+
+# получение аудиодорожки из исходного видео
+audio_clip = AudioFileClip(name.replace(".mp4", ".mp3"))
+
+# объединение видео и аудио
+final_video = CompositeVideoClip(videos)
+final_video = final_video.set_audio(audio_clip)
+
+# сохранение конечного видео
+final_video.write_videofile("final_video.mp4")
+video1 = VideoFileClip("disclaimer.mp4")
+video2 = VideoFileClip("final_video.mp4")
+resized__video1 = video1.resize((width, height))
+resized__video2 = video2.resize((width, height))
+videos2 = [resized__video1, resized__video2]
+final_video1 = concatenate_videoclips(videos2, method="compose")
+final_video1.write_videofile("4.mp4")
