@@ -90,9 +90,6 @@ if m > 0 or k / count * 100 > 5:
     for frame in buffer:
         video_writer.write(frame)
 
-    cv2.destroyAllWindows()
-    video_writer.release()
-
     # конец создания нового видео
     video1 = VideoFileClip("disclaimer.mp4")
     video2 = VideoFileClip("result.avi")
