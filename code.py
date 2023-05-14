@@ -16,7 +16,7 @@ def mse(img1, img2): # Mean Square Error - Средний квадрат оши�
    mse = err/(float(h*w))
    return mse
 
-def mse1(img1, img2): # Mean Square Error - Средний квадрат ошибки
+def mse1(img1, img2):
    h, w = img1.shape[:2]
    diff = cv.subtract(img2, img1)
    err = np.sum(diff**2)
