@@ -57,8 +57,8 @@ while True:
     frame_name = f"{count}.jpg"
     frame_1 = frame
     if count > 1:
-        # Определяем среднеквадратичную ошибку между текущим и предыдущим кадром, а также определяем яркость текущего кадра
-        if mse(previous_frame, frame) > critical_difference or mse1(previous_frame, frame) > critical_difference or func_brightness(frame) > 200:
+        # Определяем среднеквадратичную ошибку, а также разность в яркости между текущим и предыдущим кадрами
+        if mse(previous_frame, frame) > critical_difference or mse1(previous_frame, frame) > critical_difference or (abs(func_brightness(frame) - func_brightness(previous_frame)) > 80):
             # Если среднеквадратичная ошибка или яркость выше порогового значения, то добавляем номер кадра в список lst, увеличиваем счетчик k
             # затемняем кадр и добавляем его в список buffer
             lst.append(count)
